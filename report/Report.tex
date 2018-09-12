@@ -92,8 +92,6 @@
 \maketitlepage{CS5014 Machine Learning}{David Harris-Birtill\\Kasim Terzi\'{c}}
 
 
-
-
 \section{Introduction}
 A paper \cite{paper} on prediction models of energy use of appliances using data gathered from a low energy house presented different prediction models to try and gain an understanding of appliance use in buildings. 
 \n
@@ -123,15 +121,14 @@ Time is not plotted here as we have not converted it from its string form yet. H
 \n
 We can see from the histograms, many of the temperature and relative humidity values follow a relatively normal distribution. Some features have very discrete values, for example the \textit{lights} feature only has a few unique values. There are also some features that don't follow a normal distribution. For example, the histogram for \textit{RH\_6} is interesting as it as many values at the extreme ends of the histogram. This is different from most of the other humidity sensors but can be explained because this is the one humidity sensor that was placed in the exterior of the house. Another example of an odd histogram is the \textit{Visibility}, as one value dominates compared to all others. Though this can be explained as the visibility being normal for most measurements and only changes rarely, it may not make for a good input feature as its values do not change very much.
 
-\subsubsection{Temperature/Relative humidity correlation}
-
 \begin{figure}[H]
 \centering
 \includegraphics[width=1\textwidth, keepaspectratio]{imgs/t-rh-correlation.png}
 \caption{Plotting each temperature measurement against the humidity of the same sensor to see if there is any correlation between the two.}
 \end{figure}
+\noindent
+We can also see that temperatures and humidity sensors are not correlated to each other well, this shows they are not redundant features and may both be important in the prediction. 
 
-TODO \cite{colinear}
 
 \subsection{Data cleaning}
 To clean the data, we must first observe what kind of data is given. From \cite{paper}, we know our data describes temperatures, relative humidity, energy consumption, pressure, windspeed, visibility and time. From knowledge of what the data represents, we can clean any values that don't make sense, for example negative humidity or extreme temperatures.
@@ -152,7 +149,7 @@ To keep the cyclical nature of time, a different approach was used where the tim
 \subsection{Feature selection}
 Now that we have prepared the inputs and converted the timestamp, we must choose a suitable subset of features of training. It is important to choose a strong features that help give better accuracy while removing unimportant features that may hurt the performance of the model. It is also better to have fewer features to keep the model simpler. It may help to improve the accuracy of some models and reduces computational requirements. Further, it would be easier to explain and understand a simple model compared to a very complex one. 
 \n
-The correlation between all features can be computed and visualised. The correlation is mapped to its absolute value, since negative correlation is just as strong as positive correlation only in the opposite direction. This lets us see if any pair of features are very strongly correlated and one could therefore be removed as it would be redundant. 
+The correlation between all features can be computed and visualised. The correlation is mapped to its absolute value, since negative correlation is just as strong as positive correlation only in the opposite direction. This lets us see if any pair of features are very strongly correlated and one could therefore be removed as it would be redundant. As we are wanting to use a linear model to begin with, the correlation between the input features and the output is important as that is how new output values will be predicted. Unfortunately, though many of the features correlate with each other, most have quite weak correlations with the output.
 
 \begin{figure}[H]
 \centering
@@ -160,8 +157,7 @@ The correlation between all features can be computed and visualised. The correla
 \caption{Correlation matrix of all features in our dataset}
 \end{figure}
 \noindent
-As we are wanting to use a linear model to begin with, the correlation between the input features and the output is quite important as that is how new output values will be predicted. Unfortunately, though many of the features correlate with each other, most have quite weak correlations with the output. From the correlation matrix, it is clear the random variables do not correlate to any of the other features except each other, so it would be important to remove them from our list of input features.  TODO
-
+From the correlation matrix, it is clear the random variables do not correlate to any of the other features - including the output feature - except each other, so it would be important to remove them from our list of input features. Further, temperature readings seem to be correlated to themselves. For example, T1 is most well correlated to other temperature readings. This does make sense as most of the temperature readings are all from inside the house, so they would be expected to be quite similar to each other. Compared to other input values, all the temperature features are also most similar to other temperatures, giving them higher correlation among themselves. 
 
 \subsubsection{Choosing date/time feature}
 To choose which form to convert the timestamp to be, the correlation between each time feature and the output ``Appliances" features can also be computed. 
@@ -176,49 +172,97 @@ We can see that the time of the day is a strong feature compared to the day of t
 For the day of the week feature, we should again choose just one to avoid redundancy. The sine transformation of the day of the week is the most correlated to the output feature, however the cosine transform is not. Because of the consistency of the categorical features, it is chosen over the cyclical day of the week. 
 
 \subsubsection{Feature selection algorithms}
-We should also remove any input features with correlations less than that of the random variable. We can do this na\"{i}vely and keep all the rest of the input features, but we can also run some feature selection techniques to further reduce the number of input features.
+To choose the features we could simply set a threshold on the correlation of each input feature against the output and remove all features below the threshold. A more systematic way would be with methods like univariate tests.
 \n
-As \texttt{sklearn} provides various feature selection functions, some will be used in additional to our manual reduction of the feature set. 
-\n
-TODO different feature selection
+We shall choose to use two different methods. The first is the simple way of removing features under a threshold. The threshold is chosen as the correlation of the random variables. The reasoning behind this is that as the random variables are just completely random variables which have very low correlation to the output, any input features with \textit{less} correlation than that should not be used. Further, we shall use the \texttt{KBest} selector from \texttt{sklearn} as our second method for feature selection. This was chosen to contrast the simple threshold removal. From looking at our correlation matrix, there are very little features that the random variable threshold would remove. This would leave us with a large set of input features. For contrast, we can select fewer features to keep using k best selection and compare how these two selection methods may impact performance of our models. There are two options for a scoring function for the k best selector: \texttt{f\_regression} and \texttt{mutual\_information}. Mutual information was not selected as it estimates the mutual information of a continuous target variable, but not all our input features are continuous. 
 
-\section{Model selection and training}
-For the process of model selection, we first select a simple linear regression model. Then we add complexity to try and get less error by using ridge regression, then polynomial regression. The error values come from cross validating the trained model on the training data.
+\section{Model selection, training and results}
+For the process of model selection, we first select a simple linear regression model. We test on both methods of feature selection. The error values from training come from cross validating the trained model on the training data.
 \n
 After each model, the error is checked and a graph of the predicted values and true values is plotted to understand the reason behind the performance of the models.
 
 \subsection{Model performance}
-In general, the errors and results obtained had a similar performance to the results from \cite{paper}. Despite the different aspects to the input features and
+In general, the errors and results obtained had a similar performance to the results from \cite{paper}. Despite the different aspects to the input feature preprocessing and our feature selection choosing a smaller reduced set of features, our linear models were not able to improve much past the paper's results. 
 
 \subsubsection{Linear regression}
-First, we start with the simplest model of linear regression, training and k-fold cross validating on the training data. 
+First, we start with the simplest model of linear regression. 
+\begin{figure}[H]
+\centering
+\begin{tabular}{| c | c | c |}
+\hline
+\textbf{Score} &  \textbf{Threshold feature selection} & \textbf{KBest feature selection (k=10)} \\
+\hline
+RMSE & 92.57 & 94.86 \\
+\hline
+\textbf{$R^{2}$} & 0.198 & 0.16 \\
+\hline
+\end{tabular}
+\caption{Error values after cross validation for a linear regression model.}
+\end{figure}
+\noindent
+We see that our models get very similar errors to the given paper. Using the simple threshold feature selection seems to perform better while the KBest features performs just slightly worse, though the difference is small such that it could be due to variance in the data. The errors from the paper sit between our two models, with an \textsc{rmse} of 93.21 and an $R^{2}$ of 0.18. 
 \n
-
-TODO use learning curve to determine bias vs variance to see if underfit or overfit
+We are also able to reproduce the residual plot from the paper, which shows why linear regression is not a strong model for this dataset. The residuals show that when the true output value increases, the error in our model also increases. This also suggests there may be some missing variables as a predictive pattern is leaked as a residual\cite{residual}.
+\begin{figure}[H]
+\centering
+\begin{minipage}{0.45\textwidth}
+\includegraphics[width=1\textwidth, keepaspectratio]{imgs/linreg-simple.png}
+\end{minipage}
+%
+\begin{minipage}{0.45\textwidth}
+\includegraphics[width=1\textwidth, keepaspectratio]{imgs/linreg-kbest.png}
+\end{minipage}
+\caption{Predicted value and residual graphs of the two linear regression models. The model with simple feature selection is on the left and the model with KBest (k=10) feature selection is on the right.}
+\end{figure}
+\noindent
+Because our model is underfitting, it may not help to add regularisation in the form of ridge or lasso regression. Suppressing our features with a regularisation parameter would do little to improve performance. Perhaps if we increase the complexity of our model with polynomial features, we may be able to find out more. 
 
 \subsubsection{Polynomial regression}
 As our first linear model does not seem to fit the data well, we can try using basis expansion with polynomial expansion to increase the variance of the model. 
-
-
-
-
-We don't use regularisation models such as ridge regression or lasso regression as our model is underfitting, so suppressing our features with a reguarlisation parameter would do little to improve performance. We need to be able to better TODO
+\begin{figure}[H]
+\centering
+\begin{tabular}{| c | c | c |}
+\hline
+\textbf{Score} &  \textbf{Threshold feature selection} & \textbf{KBest feature selection (k=10)} \\
+\hline
+RMSE & 84.43 & 91.77 \\
+\hline
+\textbf{$R^{2}$} & 0.33 & 0.21 \\
+\hline
+\end{tabular}
+\caption{Error values after cross validation for a polynomial regression model of degree 2.}
+\end{figure}
+\noindent
+With polynomial expansion of degree 2, we are able to reduce our errors, but our models are still performing poorly. The residual pattern still occurs as expected. Particular to note is using KBest selection seems to hurt our model, as the polynomial KBest model is unable to get errors lower than that of the linear model with the simple threshold selection. However, the different is relatively small, especially given that there are more than 10 more features in the threshold selection models. 
+\n
+Furthermore, we see that in all our models, we are still predicting output values that are negative. This doesn't make sense in the context of our dataset and problem because the power consumption of appliances cannot be negative. This further suggests that a linear model may not be suitable for this dataset as getting negative values is an inherent characteristic of a linear model. 
+\begin{figure}[H]
+\centering
+\begin{minipage}{0.45\textwidth}
+\includegraphics[width=1\textwidth, keepaspectratio]{imgs/poly-simple.png}
+\end{minipage}
+%
+\begin{minipage}{0.45\textwidth}
+\includegraphics[width=1\textwidth, keepaspectratio]{imgs/poly-kfold.png}
+\end{minipage}
+\caption{Predicted value and residual graphs of the polynomial models. The model with simple feature selection is on the left and the model with KBest (k=10) feature selection on the right.}
+\end{figure}
+\noindent
+From here, it would be a good to try different regression models like support vector machines or random forest. However, due to a lack of understanding for how these different models work and a lack of time, their application as been omitted. 
 
 \section{Results and evaluation}
+After having trained our few models against the training data and getting some error statistics, we can finally use our testing data to see how well the models work. Due to us using no validation set and running cross-validation on our training data, it would be expected that the errors on the testing data are slightly higher. 
+\n
+As our simple feature selector performed better in both the simple linear and polynomial model, we shall use that as our testing feature selection. The result was very similar to the result of the models run during validation so there is little more insight that can be provided. 
+
 
 \section{Discussion}
-From having used a few different regression methods to iteratively try and get a better model, it was found that (TODO) no model resulted in good performance on the dataset. From the graphs of the predicted values, we can see because we are using an underlying linear model, there are predicted values which are negative. This does not make sense in terms of what values we should be predicting, since the Wh of appliances cannot be negative. However, as a characteristic of linear models, it will not restrict the output from negative values, so perhaps a linear model is not suitable for this problem. 
+The approach taken was careful to ensure no looking at the test data and little bias where possible. Some trade offs were taken, such as not having a validation set in an attempt to save more data for training and not looking at the whole dataset before splitting the training and test sets to prevent sampling bias. By using the pipeline structures provided by \texttt{sklearn}, each step of the machine learning process could be set modularly and clearly. This also ensures that the test data goes through the exact same preprocessing steps as the training data did.
 \n
-The residual graphs also give a clear trend, showing that as the actual value increases, the error increases as well.
+After moving from simple linear to polynomial regression with two different sets of input features, it was found that none of the models resulted in good performance on the dataset. From the graphs of the predicted values, we can see because we are using an underlying linear model, there are predicted values which are negative. The characteristic of linear models for not restricting the output from negative values, shows it is not very suitable for this dataset. Further, the residual graphs show that as the actual value increases, the error increases as well, meaning there could be missing variables. 
+\n
+Given more time and understanding, more regression models that are not linear could have been used and evaluated to see how they perform in contrast. The paper the dataset comes from seemed to have better success with other models, though their error values for test data was still relatively high. Perhaps this dataset could be viewed as a classification problem instead of a regression problem, where appliance energy consumption can be grouped into ranges of values. A look at the value counts of the dataset show most output values lie in discrete values between 0 to 200 (eg, 30,40,50...) so a different viewpoint would make an interesting comparison.
 
-
-\section{Conclusion}
-
-https://www.analyticsvidhya.com/blog/2016/01/complete-tutorial-ridge-lasso-regression-python/
-
-https://opendevincode.wordpress.com/2015/08/01/building-a-custom-python-scikit-learn-transformer-for-machine-learning/
-
-https://github.com/ageron/handson-ml/blob/master/02_end_to_end_machine_learning_project.ipynb
 
 \printbibliography
 
